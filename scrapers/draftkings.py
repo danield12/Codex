@@ -15,6 +15,7 @@ def parse_dk_odds(text):
     current_odds = {}
 
     # Regex for header: "Daniel Berger Hole Score - Hole 10 - Round 3"
+    # Sometimes it might just be "Hole Score - Hole 10 - Round 3" without player name? No, usually has player.
     header_pattern = re.compile(r"(.+?) Hole Score - Hole (\d+) - Round (\d+)")
 
     i = 0
@@ -85,29 +86,50 @@ def scrape_dk(url=None):
             page.goto(url, timeout=60000)
 
             # Click HOLE tab
-            # Wait for tab to be visible
             try:
                 page.wait_for_selector("text=HOLE", timeout=10000)
                 page.click("text=HOLE")
                 print("Clicked HOLE tab")
-                time.sleep(5) # Wait for content
+                time.sleep(5)
             except Exception as e:
                 print(f"Error clicking HOLE tab: {e}")
                 browser.close()
                 return []
 
-            # Click "2 Ball Player Hole Score" accordion if needed
-            # We assume it exists based on exploration
-            try:
-                # Check if it's already expanded? Hard to tell. Just click it.
-                # Usually text is visible.
-                page.wait_for_selector("text=2 Ball Player Hole Score", timeout=5000)
-                page.click("text=2 Ball Player Hole Score")
-                print("Clicked '2 Ball Player Hole Score'")
-                time.sleep(3)
-            except Exception as e:
-                print(f"Warning: '2 Ball Player Hole Score' not found or clickable: {e}")
-                # Maybe continue anyway, as other content might be visible
+            # Look for any accordion containing "Hole Score"
+            # This covers "2 Ball Player Hole Score", "3 Ball Player Hole Score", etc.
+            accordions = page.query_selector_all(".sportsbook-event-accordion__title")
+            clicked_count = 0
+
+            for acc in accordions:
+                text = acc.inner_text()
+                if "Hole Score" in text:
+                    print(f"Found accordion: {text}")
+                    # Check if likely already open or needs clicking. Just click to be safe?
+                    # Or check class.
+                    # Let's try to click it.
+                    try:
+                        acc.click()
+                        clicked_count += 1
+                        time.sleep(1)
+                    except Exception as e:
+                        print(f"Failed to click accordion {text}: {e}")
+
+            if clicked_count == 0:
+                print("No specific 'Hole Score' accordions found via class. Trying text search fallback.")
+                # Fallback: Try specific texts
+                targets = ["2 Ball Player Hole Score", "3 Ball Player Hole Score"]
+                for t in targets:
+                    try:
+                        if page.is_visible(f"text={t}"):
+                            page.click(f"text={t}")
+                            print(f"Clicked '{t}'")
+                            time.sleep(2)
+                    except Exception:
+                        pass
+
+            # Wait a bit for expansions
+            time.sleep(3)
 
             # Extract text
             text = page.inner_text("body")
@@ -122,8 +144,3 @@ def scrape_dk(url=None):
         browser.close()
 
     return data
-
-if __name__ == "__main__":
-    import json
-    odds = scrape_dk()
-    print(json.dumps(odds, indent=2))

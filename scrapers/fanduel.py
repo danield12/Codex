@@ -16,15 +16,19 @@ def scrape_fanduel():
             page = browser.new_page()
             url = "https://sportsbook.fanduel.com/navigation/golf"
             print(f"Navigating to {url}", file=sys.stderr)
-            page.goto(url, timeout=30000)
+            page.goto(url, timeout=45000) # Increased timeout
 
             # Check for bot protection or access denied
             title = page.title()
+            print(f"FanDuel Title: {title}", file=sys.stderr)
+
             if "Access to this page has been denied" in title or "human" in page.content().lower():
                 print("FanDuel access restricted due to bot protection.", file=sys.stderr)
+                # Maybe try taking a screenshot for debugging
+                page.screenshot(path="fanduel_debug.png")
             else:
-                # Try to find odds
-                # If we were successful, we would navigate to the specific event and parse.
+                # If successful, we would look for odds here.
+                # Assuming standard format if we ever get past the block.
                 pass
 
         except Exception as e:
@@ -36,7 +40,3 @@ def scrape_fanduel():
         print("Warning: No data found for FanDuel.", file=sys.stderr)
 
     return data
-
-if __name__ == "__main__":
-    import json
-    print(json.dumps(scrape_fanduel(), indent=2))

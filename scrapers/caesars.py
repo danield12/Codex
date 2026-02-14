@@ -10,25 +10,25 @@ def scrape_caesars():
     print("Attempting to scrape Caesars...", file=sys.stderr)
     data = []
 
-    # Placeholder logic
-    # In a real scenario, we would navigate to the golf page.
-    # But since we confirmed it's hard to reach, we will just return empty list
-    # to avoid timeouts/errors during the main execution,
-    # but we will try one improved navigation attempt just in case.
-
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         try:
             page = browser.new_page()
             url = "https://sportsbook.caesars.com/us/nj/bet/golf"
             print(f"Navigating to {url}", file=sys.stderr)
-            page.goto(url, timeout=30000)
+            page.goto(url, timeout=45000) # Increased timeout
 
-            # Check if we are on a valid page or blocked
-            if "Access Denied" in page.title() or "MARKETS NOT AVAILABLE" in page.content():
+            # Check for bot protection or access denied
+            title = page.title()
+            print(f"Caesars Title: {title}", file=sys.stderr)
+
+            if "Access Denied" in title or "MARKETS NOT AVAILABLE" in page.content():
                 print("Caesars access restricted or no markets available.", file=sys.stderr)
+                # Maybe try taking a screenshot for debugging
+                page.screenshot(path="caesars_debug.png")
             else:
-                # Try to find odds (placeholder)
+                # If successful, we would look for odds here.
+                # Assuming standard format if we ever get past the block.
                 pass
 
         except Exception as e:
@@ -40,7 +40,3 @@ def scrape_caesars():
         print("Warning: No data found for Caesars.", file=sys.stderr)
 
     return data
-
-if __name__ == "__main__":
-    import json
-    print(json.dumps(scrape_caesars(), indent=2))
