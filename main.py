@@ -1,6 +1,7 @@
 import json
 import sys
 import argparse
+import csv
 from scrapers.draftkings import scrape_dk
 from scrapers.caesars import scrape_caesars
 from scrapers.fanduel import scrape_fanduel
@@ -15,6 +16,7 @@ def normalize_player_name(name):
 def main():
     parser = argparse.ArgumentParser(description="Scrape and compare PGA hole score odds.")
     parser.add_argument("--dk-url", help="DraftKings tournament URL", default=None)
+    parser.add_argument("--output", help="Output CSV file", default="pga_hole_scores.csv")
     args = parser.parse_args()
 
     print("Starting PGA hole score odds comparison...", file=sys.stderr)
@@ -83,7 +85,6 @@ def main():
 
         consolidated[key]['FanDuel'] = odds
 
-    # 5. Print Table
     if not consolidated:
         print("No data found from any sportsbook.")
         return
@@ -95,12 +96,13 @@ def main():
         ("Bogey or Worse", "Bogey+")
     ]
 
-    # Header
+    # 5. Print Table and Write CSV
     print(f"{'Player':<20} | {'Hole':<4} | {'Rnd':<3} | {'Market':<10} | {'DK':<6} | {'CZR':<6} | {'FD':<6}")
     print("-" * 75)
 
-    # Sort by player, then hole, then round
     sorted_keys = sorted(consolidated.keys(), key=lambda x: (x[0], int(x[1]), int(x[2])))
+
+    csv_rows = []
 
     for key in sorted_keys:
         player, hole, round_num = key
@@ -112,6 +114,28 @@ def main():
             fd_val = book_odds['FanDuel'].get(market_key, "-")
 
             print(f"{player:<20} | {hole:<4} | {round_num:<3} | {market_display:<10} | {dk_val:<6} | {czr_val:<6} | {fd_val:<6}")
+
+            csv_rows.append({
+                "Player": player,
+                "Hole": hole,
+                "Round": round_num,
+                "Market": market_display,
+                "DraftKings Odds": dk_val,
+                "Caesars Odds": czr_val,
+                "FanDuel Odds": fd_val
+            })
+
+    # Write to CSV
+    if args.output:
+        try:
+            with open(args.output, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = ["Player", "Hole", "Round", "Market", "DraftKings Odds", "Caesars Odds", "FanDuel Odds"]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(csv_rows)
+            print(f"\nSuccessfully wrote {len(csv_rows)} rows to {args.output}", file=sys.stderr)
+        except Exception as e:
+            print(f"\nError writing to CSV: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
